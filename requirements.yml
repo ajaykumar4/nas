@@ -1,0 +1,7 @@
+# requirements.yml
+---
+collections:
+  - name: community.sops
+    version: "1.0.5" # Pins community.sops version for consistency
+  - name: ansible.posix
+    version: "1.5.0"

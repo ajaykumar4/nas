@@ -1,0 +1,10 @@
+---
+- name: Provision AlmaLinux NAS
+  hosts: nas
+  become: true
+  # vars:
+  #   # Load SOPS encrypted secrets globally
+  #   secrets: "{{ lookup('community.sops.sops', 'secrets.sops.yml') | from_yaml }}"
+
+  roles:
+    - role: network
