@@ -2,6 +2,6 @@
 ---
 collections:
   - name: community.sops
-    version: "1.0.5" # Pins community.sops version for consistency
+    version: "2.4.0" 
   - name: ansible.posix
-    version: "1.5.0"
+    version: "2.2.2"

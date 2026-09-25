@@ -1,2 +1,2 @@
 [nas]
-nas ansible_host=192.168.1.100 ansible_user=root ansible_password=root
+nas ansible_host=192.168.1.100 ansible_port=22 ansible_user=YOUR_USERNAME ansible_password=YOUR_PASSWORD ansible_become=true ansible_become_password=YOUR_SUDO_PASSWORD

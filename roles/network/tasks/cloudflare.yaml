@@ -1,0 +1,55 @@
+---
+- name: Load Cloudflare SOPS secrets
+  community.sops.load_vars:
+    file: "{{ role_path }}/vars/cloudflare.sops.yaml"
+    name: cloudflare_secrets
+
+- name: Assert SOPS secrets are decrypted
+  ansible.builtin.assert:
+    that:
+      - cloudflare_secrets is defined
+      - cloudflare_secrets.TUNNEL_TOKEN is defined
+      - "'ENC[AES256_GCM' not in cloudflare_secrets.TUNNEL_TOKEN"
+    fail_msg: "FAILED: Cloudflare SOPS secrets are unencrypted/raw ciphertext!"
+    success_msg: "SUCCESS: Cloudflare SOPS secrets successfully decrypted."
+
+- name: Remove broken legacy Cloudflare repo file
+  ansible.builtin.file:
+    path: /etc/yum.repos.d/cloudflare.repo
+    state: absent
+
+- name: Ensure broken repo definition is removed via yum_repository
+  ansible.builtin.yum_repository:
+    name: cloudflare
+    state: absent
+
+- name: Add official Cloudflare YUM repository
+  ansible.builtin.get_url:
+    url: https://pkg.cloudflare.com/cloudflared-ascii.repo
+    dest: /etc/yum.repos.d/cloudflared.repo
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Purge DNF cache entirely
+  ansible.builtin.command:
+    cmd: dnf clean all
+  changed_when: false
+
+- name: Install Cloudflared
+  ansible.builtin.dnf:
+    name: cloudflared
+    state: present
+
+- name: Install Cloudflared connector service
+  ansible.builtin.command:
+    cmd: "cloudflared service install {{ cloudflare_secrets.TUNNEL_TOKEN }}"
+  args:
+    creates: /etc/systemd/system/cloudflared.service
+  no_log: true
+
+- name: Enable and start Cloudflared service
+  ansible.builtin.systemd_service:
+    name: cloudflared
+    state: started
+    enabled: true

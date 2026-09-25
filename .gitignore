@@ -4,6 +4,9 @@
 .ansible/
 ansible.log
 
+# Local editor settings
+.vscode/
+
 # Ignore local Age private keys
 age.key
 

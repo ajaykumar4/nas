@@ -1,7 +1,7 @@
 creation_rules:
-  - path_regex: ".*\.sops\.ya?ml$"
+  - path_regex: 'roles/.*\.sops\.ya?ml'
     mac_only_encrypted: true
-    age: "age1seey2wst0ujdjam2d4s36ccmlh2tt2meyyyvrky2pg4aelpwtp3qrnayd4"
+    age: "age1ft5t2uyrll4klez79haqfcfth0nt6kunx8yeta93uu63vwum2dusy72gqn"
 stores:
   yaml:
     indent: 2

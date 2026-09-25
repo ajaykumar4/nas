@@ -1,0 +1,81 @@
+---
+- name: Load Tailscale SOPS secrets
+  community.sops.load_vars:
+    file: "{{ role_path }}/vars/tailscale.sops.yaml"
+    name: tailscale_secrets
+
+- name: Assert SOPS secrets are decrypted
+  ansible.builtin.assert:
+    that:
+      - tailscale_secrets is defined
+      - tailscale_secrets.TS_AUTHKEY is defined
+      - "'ENC[AES256_GCM' not in tailscale_secrets.TS_AUTHKEY"
+    fail_msg: "FAILED: Tailscale SOPS secrets are unencrypted/raw ciphertext!"
+    success_msg: "SUCCESS: Tailscale SOPS secrets successfully decrypted."
+
+- name: Add Tailscale YUM repository
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/stable/rhel/{{ ansible_facts['distribution_major_version'] | default('10') }}/tailscale.repo"
+    dest: /etc/yum.repos.d/tailscale.repo
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Purge DNF cache entirely
+  ansible.builtin.command:
+    cmd: dnf clean all
+  changed_when: false
+
+- name: Install Tailscale
+  ansible.builtin.dnf:
+    name: tailscale
+    state: present
+
+- name: Enable and start Tailscaled service
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    state: started
+    enabled: true
+
+- name: Wait for tailscaled socket
+  ansible.builtin.wait_for:
+    path: /var/run/tailscale/tailscaled.sock
+    state: present
+    timeout: 15
+
+- name: Enable IP forwarding for Tailscale routing
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+  loop:
+    - net.ipv4.ip_forward
+    - net.ipv6.conf.all.forwarding
+
+- name: Check Tailscale login status
+  ansible.builtin.command:
+    cmd: tailscale status --json
+  register: tailscale_status_json
+  changed_when: false
+  failed_when: false
+
+- name: Authenticate Tailscale node
+  ansible.builtin.command:
+    argv: "{{ ts_args }}"
+  vars:
+    ts_args: >-
+      {{
+        [
+          'tailscale', 'up',
+          '--authkey=' ~ tailscale_secrets.TS_AUTHKEY,
+          '--hostname=' ~ ansible_facts['hostname']
+        ]
+        + (['--advertise-routes=' ~ tailscale_secrets.TS_ROUTES | trim] if (tailscale_secrets.TS_ROUTES | default('') | trim) else [])
+        + ((tailscale_secrets.TS_EXTRA_ARGS | default('') | trim).split() if (tailscale_secrets.TS_EXTRA_ARGS | default('') | trim) else [])
+      }}
+    ts_backend_state: "{{ (tailscale_status_json.stdout | default('{}') | from_json).BackendState | default('') }}"
+  when: ts_backend_state != "Running"
+  no_log: true
+  changed_when: true
