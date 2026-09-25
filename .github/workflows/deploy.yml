@@ -1,0 +1,76 @@
+name: Deploy NAS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-nas-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ANSIBLE_CONFIG: ${{ github.workspace }}/ansible.cfg
+      ANSIBLE_HOST_KEY_CHECKING: "False"
+      SOPS_AGE_KEY_FILE: ${{ github.workspace }}/age.key
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          hostname: github-nas-${{ github.run_number }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible-core
+
+      - name: Set up Go for SOPS
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Add Go bin to PATH
+        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Install SOPS
+        run: go install github.com/getsops/sops/v3/cmd/sops@v3.13.0
+
+      - name: Write SOPS age key
+        shell: bash
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          umask 077
+          printf '%s' "$SOPS_AGE_KEY" > age.key
+
+      - name: Create ephemeral inventory
+        shell: bash
+        env:
+          NAS_HOSTNAME: ${{ secrets.NAS_HOSTNAME }}
+          NAS_USER: ${{ secrets.NAS_USER }}
+          NAS_PASSWORD: ${{ secrets.NAS_PASSWORD }}
+        run: |
+          cat > inventory.ci.ini <<EOF
+          [nas]
+          nas ansible_host=${NAS_HOSTNAME} ansible_user=${NAS_USER} ansible_password=${NAS_PASSWORD} ansible_become=true ansible_become_password=${NAS_PASSWORD}
+          EOF
+
+      - name: Install Ansible Galaxy collections
+        run: ansible-galaxy collection install -r requirements.yml --force
+
+      - name: Deploy to NAS
+        run: ansible-playbook -i inventory.ci.ini site.yml
