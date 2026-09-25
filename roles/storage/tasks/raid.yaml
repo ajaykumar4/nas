@@ -1,0 +1,56 @@
+---
+- name: Install mdadm package
+  ansible.builtin.package:
+    name: mdadm
+    state: present
+
+- name: Create RAID arrays
+  ansible.builtin.command:
+    cmd: "mdadm --create /dev/md/{{ item.name }} --level={{ item.level | default(1) }} --raid-devices={{ item.devices | length }} {{ item.devices | join(' ') }}"
+  loop: "{{ storage_raid_arrays | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: raid_create_result
+  changed_when: "'added to' in raid_create_result.stdout or 'has been started' in raid_create_result.stdout"
+  failed_when:
+    - raid_create_result.rc != 0
+    - "'already exists' not in raid_create_result.stderr"
+
+- name: Wait for RAID arrays to be ready
+  ansible.builtin.wait_for:
+    path: "/dev/md/{{ item.name }}"
+    state: present
+  loop: "{{ storage_raid_arrays | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Format RAID arrays
+  community.general.filesystem:
+    fstype: "{{ item.fstype | default('ext4') }}"
+    dev: "/dev/md/{{ item.name }}"
+    state: present
+  loop: "{{ storage_raid_arrays | default([]) }}"
+  when: item.fstype is defined
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create mount point directories
+  ansible.builtin.file:
+    path: "{{ item.mountpoint }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ storage_raid_arrays | default([]) }}"
+  when: item.mountpoint is defined
+  loop_control:
+    label: "{{ item.mountpoint }}"
+
+- name: Mount RAID arrays
+  ansible.posix.mount:
+    path: "{{ item.mountpoint }}"
+    src: "/dev/md/{{ item.name }}"
+    fstype: "{{ item.fstype | default('ext4') }}"
+    state: mounted
+  loop: "{{ storage_raid_arrays | default([]) }}"
+  when: item.mountpoint is defined
+  loop_control:
+    label: "{{ item.name }}"

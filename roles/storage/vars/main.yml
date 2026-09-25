@@ -1,0 +1,40 @@
+---
+# Storage role default variables
+
+# Package installation
+storage_packages:
+  - zfs-release
+  - zfs
+  - zfsutils-linux
+  - zfs-dkms
+
+# ZFS configuration
+storage_zfs_enabled: true
+storage_zfs_pools: []
+  # Example:
+  # - name: tank
+  #   properties:
+  #     ashift: "12"
+  #     compression: "lz4"
+  #     recordsize: "1M"
+
+storage_zfs_datasets: []
+  # Example:
+  # - name: tank/data
+  #   mountpoint: /data
+  #   properties:
+  #     compression: "lz4"
+  # - name: tank/media
+  #   mountpoint: /media
+
+# RAID configuration
+storage_raid_enabled: false
+storage_raid_arrays: []
+  # Example:
+  # - name: md0
+  #   devices:
+  #     - /dev/sda1
+  #     - /dev/sdb1
+  #   level: 1
+  #   fstype: ext4
+  #   mountpoint: /mnt/raid0

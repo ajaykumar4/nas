@@ -1,0 +1,34 @@
+---
+- name: Load ZFS kernel module
+  community.general.modprobe:
+    name: zfs
+    state: present
+
+- name: Create ZFS pools
+  community.general.zfs:
+    name: "{{ item.name }}"
+    state: present
+    properties: "{{ item.properties | default({}) }}"
+  loop: "{{ storage_zfs_pools | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create ZFS datasets
+  community.general.zfs:
+    name: "{{ item.name }}"
+    state: present
+    properties: "{{ item.properties | default({}) }}"
+  loop: "{{ storage_zfs_datasets | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Set ZFS dataset mount points
+  ansible.builtin.command:
+    cmd: "zfs set mountpoint={{ item.mountpoint }} {{ item.name }}"
+  loop: "{{ storage_zfs_datasets | default([]) }}"
+  when: item.mountpoint is defined
+  loop_control:
+    label: "{{ item.name }}"
+  register: zfs_mount_result
+  changed_when: "'is already set' not in zfs_mount_result.stderr"
+  failed_when: false

@@ -1,0 +1,13 @@
+---
+- name: Install storage packages
+  ansible.builtin.package:
+    name: "{{ storage_packages }}"
+    state: present
+
+- name: Configure ZFS
+  ansible.builtin.import_tasks: zfs.yaml
+  when: storage_zfs_enabled | default(true)
+
+- name: Configure RAID
+  ansible.builtin.import_tasks: raid.yaml
+  when: storage_raid_enabled | default(false)

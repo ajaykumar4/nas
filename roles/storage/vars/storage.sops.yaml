@@ -1,0 +1,12 @@
+# Encrypted storage configuration
+# Edit with: sops roles/storage/vars/storage.sops.yaml
+# 
+# Example structure:
+# storage_zfs_pools:
+#   - name: tank
+#     devices:
+#       - /dev/sda
+#       - /dev/sdb
+#     properties:
+#       ashift: "12"
+#       compression: "lz4"
