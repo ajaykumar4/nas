@@ -1,0 +1,61 @@
+---
+- name: Load Storage SOPS secrets
+  community.sops.load_vars:
+    file: "{{ role_path }}/vars/storage.sops.yaml"
+    name: storage_secrets
+
+- name: Assert SOPS secrets are decrypted and defined
+  ansible.builtin.assert:
+    that:
+      - storage_secrets is defined
+      - storage_secrets.raid_device is defined
+      - storage_secrets.raid_disks is defined
+      - storage_secrets.raid_mount_point is defined
+      - "'ENC[AES256_GCM' not in storage_secrets.raid_device"
+    fail_msg: "FAILED: Storage SOPS secrets are missing or unencrypted raw ciphertext!"
+    success_msg: "SUCCESS: Storage SOPS secrets successfully loaded and decrypted."
+
+- name: Install NFS server utilities
+  ansible.builtin.dnf:
+    name:
+      - nfs-utils
+      - rpcbind
+    state: present
+
+- name: Ensure share directory exists
+  ansible.builtin.file:
+    path: "{{ storage_secrets.raid_mount_point }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0777'
+
+- name: Configure NFS exports
+  ansible.builtin.lineinfile:
+    path: /etc/exports
+    line: "{{ storage_secrets.raid_mount_point }} *(rw,sync,no_subtree_check,no_root_squash)"
+    regexp: "^\\s*{{ storage_secrets.raid_mount_point | regex_escape }}"
+    create: true
+    mode: '0644'
+  notify: Reload NFS exports
+
+- name: Allow NFS service in firewalld (if firewalld is active)
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - nfs
+    - rpc-bind
+    - mountd
+  ignore_errors: true
+
+- name: Ensure rpcbind and NFS services are enabled and running
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - rpcbind
+    - nfs-server

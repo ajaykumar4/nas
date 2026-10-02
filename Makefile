@@ -37,9 +37,9 @@ sops-config: key ## Generate or update .sops.yaml using public key from age.key
 
 install: key sops-config ## Generate keys, configure SOPS, and install pinned Ansible Galaxy dependencies
 	@echo "==> Installing Ansible Galaxy dependencies..."
-	ansible-galaxy collection install -r $(REQUIREMENTS) --force
+	ansible-galaxy collection install -r $(REQUIREMENTS)
 
-run: key sops-config ## Run the main Ansible playbook using local age.key
+run: key sops-config encrypt ## Run the main Ansible playbook using local age.key
 	@echo "==> Executing playbook $(PLAYBOOK)..."
 	SOPS_AGE_KEY_FILE=$(SOPS_AGE_KEY_FILE) ansible-playbook -i $(INVENTORY) $(PLAYBOOK)
 

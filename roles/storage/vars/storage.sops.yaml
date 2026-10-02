@@ -1,12 +1,21 @@
-# Encrypted storage configuration
-# Edit with: sops roles/storage/vars/storage.sops.yaml
-# 
-# Example structure:
-# storage_zfs_pools:
-#   - name: tank
-#     devices:
-#       - /dev/sda
-#       - /dev/sdb
-#     properties:
-#       ashift: "12"
-#       compression: "lz4"
+raid_device: ENC[AES256_GCM,data:TrdonU8u8MU=,iv:ZWSt4lBIRlsqGoxLB+SGHUK0lnP/tlr93gg7nOoXgJI=,tag:h8FXA1vxqt4wniegPnogew==,type:str]
+raid_mount_point: ENC[AES256_GCM,data:JSfGlw1WNzAy4FEC,iv:NeL3R50PewWN4dKo3jIxluCvHnVIAt9Sey+MOlcfMdA=,tag:DKZLJfo9NWYQuTEw7BsQRA==,type:str]
+raid_disks:
+  - ENC[AES256_GCM,data:X7MP+4LiNWwl/DULTQ9j5Ew5z6hjzLzf2zhyZVSx9+sZy37Hd/Y43mWpHtZCscw=,iv:TOvv2/7CKKPJWXntzBXdq+eDXSS5vo3+2ZK+7Xwxct0=,tag:oNvPpsrVYh5o/mQFbEW0jA==,type:str]
+  - ENC[AES256_GCM,data:4A0YtWrU779U8xxb9sDrcU65wOw54BHlevdxHQjLjXEYVsCR42qiCZJLq67o+vk=,iv:fuXfNgaG72PZSEFYh6+HBDhiFAWMRsZtZeMEgcVjsw4=,tag:sr9Ff0CLzOTPlAqjyXr7Cw==,type:str]
+sops:
+  age:
+    - enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBuZXR1bzBnVHgxUFFmUHpB
+        ejVyb3U5b09KQW9BcnJiZlhOUXIrdzFGRkdBCllPK3NxVS9CcGJUSVlvNDFPMDgr
+        Y1BsZUpiVGgrZmFKY1k3OTZjYWlnR1UKLS0tIGU4bjZMWXYxRm9qME5lSnByVDlZ
+        Wnd6REtDcG1CMDVKK1FTUkNGakhXbWMK3M6ThibT7/YkoVij77Bo2jDmhsANOpAE
+        Mg590AHI83TF03UfRMDB96UUTANP7PEwolEt2ui7VVCa9wtXvytseA==
+        -----END AGE ENCRYPTED FILE-----
+      recipient: age1ft5t2uyrll4klez79haqfcfth0nt6kunx8yeta93uu63vwum2dusy72gqn
+  lastmodified: "2026-10-02T17:23:34Z"
+  mac: ENC[AES256_GCM,data:ZKDUf78ojiRcUiKQXgPz/5ZdI7gLrvB18svuUKhsQXWUFQ4N5lXyspZzKOODLxg+i948bo/Rc3XQWLCHHjflpzHskOjH1FnifXY0ZlJWEVB3bDfWIwM3vWECUq7Xi8UVZo0RpvNWMImGsFTmfKINtI63uiowhH3+CezEgT99dC4=,iv:JLO3EA5dR34gPlFPOFwuaxTei7Hni9Cel9aRukHNk14=,tag:H51gVMS50qwYwhY96bWlwA==,type:str]
+  mac_only_encrypted: true
+  unencrypted_suffix: _unencrypted
+  version: 3.13.0

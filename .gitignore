@@ -1,7 +1,7 @@
 # Ansible
 .retry/
 *.retry
-.ansible/
+collections/
 ansible.log
 
 # Local editor settings

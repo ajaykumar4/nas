@@ -1,0 +1,89 @@
+---
+- name: Load Storage SOPS secrets
+  community.sops.load_vars:
+    file: "{{ role_path }}/vars/storage.sops.yaml"
+    name: storage_secrets
+
+- name: Assert SOPS secrets are decrypted and defined
+  ansible.builtin.assert:
+    that:
+      - storage_secrets is defined
+      - storage_secrets.raid_device is defined
+      - storage_secrets.raid_disks is defined
+      - storage_secrets.raid_mount_point is defined
+      - "'ENC[AES256_GCM' not in storage_secrets.raid_device"
+    fail_msg: "FAILED: Storage SOPS secrets are missing or unencrypted raw ciphertext!"
+    success_msg: "SUCCESS: Storage SOPS secrets successfully loaded and decrypted."
+
+- name: Install RAID and filesystem utilities
+  ansible.builtin.dnf:
+    name:
+      - mdadm
+      - parted
+      - xfsprogs
+      - util-linux
+    state: present
+
+- name: Check if RAID array exists
+  ansible.builtin.stat:
+    path: "{{ storage_secrets.raid_device }}"
+  register: md_device_stat
+
+- name: Wipe existing metadata from target disks if RAID array is missing
+  ansible.builtin.command:
+    cmd: "wipefs -a {{ item }}"
+  loop: "{{ storage_secrets.raid_disks }}"
+  when: not md_device_stat.stat.exists
+  failed_when: false
+  changed_when: true
+
+- name: Create software RAID 1 mirror array
+  ansible.builtin.command:
+    cmd: "mdadm --create --verbose {{ storage_secrets.raid_device }} --level=1 --raid-devices={{ storage_secrets.raid_disks | length }} {{ storage_secrets.raid_disks | join(' ') }} --run"
+  when: not md_device_stat.stat.exists
+  register: mdadm_create
+  changed_when: mdadm_create.rc == 0
+
+- name: Generate mdadm scan configuration
+  ansible.builtin.command:
+    cmd: "mdadm --detail --scan"
+  register: mdadm_scan
+  changed_when: false
+
+- name: Persist RAID configuration in /etc/mdadm.conf
+  ansible.builtin.copy:
+    content: "{{ mdadm_scan.stdout }}\n"
+    dest: /etc/mdadm.conf
+    mode: '0644'
+  when: mdadm_scan.stdout != ""
+
+- name: Format RAID 1 array with XFS filesystem
+  community.general.filesystem:
+    fstype: xfs
+    dev: "{{ storage_secrets.raid_device }}"
+
+- name: Get UUID of formatted RAID filesystem
+  ansible.builtin.command:
+    cmd: "blkid -s UUID -o value {{ storage_secrets.raid_device }}"
+  register: raid_uuid
+  changed_when: false
+
+- name: Ensure target mount directory exists
+  ansible.builtin.file:
+    path: "{{ storage_secrets.raid_mount_point }}"
+    state: directory
+    mode: '0755'
+
+- name: Mount RAID array by UUID and append entry to /etc/fstab
+  ansible.posix.mount:
+    path: "{{ storage_secrets.raid_mount_point }}"
+    src: "UUID={{ raid_uuid.stdout }}"
+    fstype: xfs
+    opts: defaults
+    state: mounted
+
+- name: Ensure mdadm monitoring service is enabled and active
+  ansible.builtin.systemd:
+    name: mdmonitor
+    enabled: true
+    state: started

@@ -7,5 +7,5 @@
   #   secrets: "{{ lookup('community.sops.sops', 'secrets.sops.yml') | from_yaml }}"
 
   roles:
-    - role: network
+  #   - role: network
     - role: storage
