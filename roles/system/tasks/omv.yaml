@@ -51,7 +51,7 @@
     path: /etc/cloudflared/config.yml
     insertbefore: '^\s*-\s*service:\s*http_status:404'
     marker: "  # {mark} ANSIBLE MANAGED BLOCK: OMV INGRESS"
-    block: "  # OpenMediaVault Web Interface\n  - hostname: nas.{{ cloudflare_secrets.DOMAIN }}\n    service: http://localhost:80"
+    block: "  # OpenMediaVault Web Interface\n  - hostname: nas.{{ cloudflare_secrets.DOMAIN }}\n    service: http://{{ ansible_facts['default_ipv4']['address'] }}:80"
   when: cloudflared_config_stat.stat.exists
   notify: Restart Cloudflared service
   
