@@ -98,3 +98,17 @@
     block: "  # SeaweedFS S3 API Gateway\n  - hostname: s3.{{ cloudflare_secrets.DOMAIN }}\n    service: http://localhost:8333\n\n  # SeaweedFS Filer GUI\n  - hostname: filer.{{ cloudflare_secrets.DOMAIN }}\n    service: http://localhost:8888\n\n  # SeaweedFS Master UI\n  - hostname: seaweed.{{ cloudflare_secrets.DOMAIN }}\n    service: http://localhost:9333"
   when: cloudflared_config_stat.stat.exists
   notify: Restart Cloudflared service
+
+- name: Ensure CNAME DNS records point to Cloudflare Tunnel
+  community.general.cloudflare_dns:
+    zone: "{{ cloudflare_secrets.DOMAIN }}"
+    name: "{{ item }}"
+    type: CNAME
+    content: "{{ cloudflare_creds_json.TunnelID }}.cfargotunnel.com"
+    proxied: true
+    state: present
+    api_token: "{{ cloudflare_secrets.API_TOKEN }}"
+  loop:
+    - "s3"
+    - "filer"
+    - "seaweed"

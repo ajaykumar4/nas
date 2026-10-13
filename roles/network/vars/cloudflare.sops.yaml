@@ -1,5 +1,6 @@
 TUNNEL_TOKEN: ENC[AES256_GCM,data:zhS+ldcnLkh+phVSSBcAz8ZAy8R9YR+zE0unI3xQsLoxQP0VuOhEj6eUigxkSJ42D3ck1I53nIjtUgmtlqpXcaIXHQWO/4ZMw0TRX9JQsodZqSO/GIT27t8bUVXBXAfhJLEs+nVZVey80xrgbwnWouFP+uqBCX/OAHiY53eFcWK2yhITwdSfR3LEnK53wga6f48fpT5ZG/3pB82AyMQhGCWMhE+K5feiJ0wRjHQhgknzM2sAiAGeFw==,iv:MORhGxKPxoPadhE5JHOq3aEzKb4GRcIEtHAI4x1REn0=,tag:MvFf+UwDUHQPl/UZtbS3rQ==,type:str]
 DOMAIN: ENC[AES256_GCM,data:0mO2qrijnKGA,iv:eZ9ok0K31dKqWFVhXWi6LZABGO9FHUhfxeLKHiELuGQ=,tag:0RNwPkLhySVNZ1cJirwG+Q==,type:str]
+API_TOKEN: ENC[AES256_GCM,data:eiTO8OxU4siCUnUkXN6qQtXf/O1P3r63rS7LhfXxl5QVLficEjud8A==,iv:I66NgS6yyE5cmnRV7I0g8XUgE6NWFfa1Fevsm6rDSz4=,tag:zPsSLm+BvuLDjKFhtM6xOA==,type:str]
 sops:
     age:
         - enc: |
@@ -11,8 +12,8 @@ sops:
             4ngOL+S0eAffqkh9Srb4jIpKXAaPCXjMDZ7FqjMIwBEc23ieed8ZgA==
             -----END AGE ENCRYPTED FILE-----
           recipient: age1ft5t2uyrll4klez79haqfcfth0nt6kunx8yeta93uu63vwum2dusy72gqn
-    lastmodified: "2026-10-13T16:28:30Z"
-    mac: ENC[AES256_GCM,data:7pKpb04epVFlRQdpCtgTwEyi7+thoLBv/xUNTG5lGVqqn1Nbso2ULlVav9wiEHKOyUSFENtAHNYGB0YoWYKV4KSsqdWsaYfRZ+h4rtsVZ+DUUCmwookUkbDHp1moRrbmGArtT1H3N+utVb5GfXjuqw5WBVAKUiBLLw/igokKl5I=,iv:JvxHxyxWrA6tBZ8n8oXVYoHt7272cynA4yHV7ODWIZI=,tag:BbYvk9jnFy096pRWIJPEPQ==,type:str]
+    lastmodified: "2026-10-13T21:40:44Z"
+    mac: ENC[AES256_GCM,data:sXmP+bvJ7oLozfsJ5LXCFQfuZ25b8d8wNg6et/Jer1x3+QDS/kW80+ppTclc2nHmY1QYsyV6+HOji+DiRrsR4CT2KhQsE9ENc9y9j4+Ld5WJEevZO/d2yoXxejRuDysNuIm0qhEI/IuNY0IChkOzCSK8B2HU0hMHn+l9YTIU0Nc=,iv:3YPpwIvAlxRTWAWRrYAWKZgtV/UYMRy2UB6W+NiBAHM=,tag:xYPeV7ZkNvAYPVpJdAMIZA==,type:str]
     mac_only_encrypted: true
     unencrypted_suffix: _unencrypted
-    version: 3.13.0
+    version: 3.13.3
