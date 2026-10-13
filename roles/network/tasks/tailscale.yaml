@@ -16,11 +16,20 @@
     mode: '0644'
 
 - name: Add official Tailscale APT repository
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/debian {{ ansible_facts['distribution_release'] | default('bookworm') }} main"
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: deb
+    uris: https://pkgs.tailscale.com/stable/debian
+    suites: "{{ ansible_facts['distribution_release'] | default('bookworm') }}"
+    components: main
+    signed_by: /etc/apt/keyrings/tailscale-archive-keyring.gpg
     state: present
-    filename: tailscale
+  register: tailscale_repo
+
+- name: Update APT cache if Tailscale repository changed
+  ansible.builtin.apt:
     update_cache: yes
+  when: tailscale_repo.changed
 
 - name: Install Tailscale
   ansible.builtin.apt:

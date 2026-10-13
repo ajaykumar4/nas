@@ -1,5 +1,5 @@
 ---
-- name: Provision AlmaLinux NAS
+- name: Provision NAS
   hosts: nas
   become: true
   # vars:

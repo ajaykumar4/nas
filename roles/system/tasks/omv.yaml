@@ -1,31 +1,56 @@
 ---
 # -------------------------------------------------------------
-# OpenMediaVault (OMV) & OMV-Extras Installation
+# OpenMediaVault 7 Core Installation
 # -------------------------------------------------------------
-- name: Check if OpenMediaVault is installed
-  ansible.builtin.stat:
-    path: /usr/sbin/omv-engined
-  register: omv_installed
-
 - name: Download official OpenMediaVault installer
   ansible.builtin.get_url:
     url: https://github.com/OpenMediaVault-Plugin-Developers/installScript/raw/master/install
     dest: /tmp/omv-install.sh
     mode: '0755'
-  when: not omv_installed.stat.exists
 
 - name: Execute OpenMediaVault installation script (Non-interactive)
   ansible.builtin.command:
     cmd: /tmp/omv-install.sh -n
-  when: not omv_installed.stat.exists
+    creates: /usr/sbin/omv-engined
   notify: Reboot ZimaBlade system
 
-- name: Check if OMV-Extras is installed
-  ansible.builtin.stat:
-    path: /usr/bin/omv-extras
-  register: omvextras_installed
+- name: Clean up OpenMediaVault installer script
+  ansible.builtin.file:
+    path: /tmp/omv-install.sh
+    state: absent
 
-- name: Download and install OMV-Extras plugin repository
-  ansible.builtin.shell:
-    cmd: wget -O - https://github.com/OpenMediaVault-Plugin-Developers/packages/raw/master/install | bash
-  when: not omvextras_installed.stat.exists
+# -------------------------------------------------------------
+# OpenMediaVault Extras (OMV-Extras) Installation
+# -------------------------------------------------------------
+- name: Download OMV-Extras installation script
+  ansible.builtin.get_url:
+    url: https://github.com/OpenMediaVault-Plugin-Developers/packages/raw/master/install
+    dest: /tmp/omvextras-install.sh
+    mode: '0755'
+
+- name: Execute OMV-Extras installation script
+  ansible.builtin.command:
+    cmd: /tmp/omvextras-install.sh
+    creates: /usr/bin/omv-extras
+
+- name: Clean up OMV-Extras installer script
+  ansible.builtin.file:
+    path: /tmp/omvextras-install.sh
+    state: absent
+
+# -------------------------------------------------------------
+# Append OpenMediaVault Ingress Rule to Cloudflare Tunnel Config
+# -------------------------------------------------------------
+- name: Check if Cloudflare Tunnel configuration file exists
+  ansible.builtin.stat:
+    path: /etc/cloudflared/config.yml
+  register: cloudflared_config_stat
+
+- name: Append OpenMediaVault UI endpoint to Cloudflare Tunnel ingress configuration
+  ansible.builtin.blockinfile:
+    path: /etc/cloudflared/config.yml
+    insertbefore: '^\s*-\s*service:\s*http_status:404'
+    marker: "  # {mark} ANSIBLE MANAGED BLOCK: OMV INGRESS"
+    block: "  # OpenMediaVault Web Interface\n  - hostname: nas.{{ cloudflare_secrets.DOMAIN }}\n    service: http://localhost:80"
+  when: cloudflared_config_stat.stat.exists
+  notify: Restart Cloudflared service

@@ -62,3 +62,39 @@
     enabled: true
     daemon_reload: yes
 
+# -------------------------------------------------------------
+# Append SeaweedFS Ingress Rules to Cloudflare Tunnel Config
+# -------------------------------------------------------------
+- name: Check if Cloudflare Tunnel configuration file exists
+  ansible.builtin.stat:
+    path: /etc/cloudflared/config.yml
+  register: cloudflared_config_stat
+
+- name: Append SeaweedFS endpoints to Cloudflare Tunnel ingress configuration
+  ansible.builtin.blockinfile:
+    path: /etc/cloudflared/config.yml
+    insertbefore: '^\s*-\s*service:\s*http_status:404'
+    marker: "  # {mark} ANSIBLE MANAGED BLOCK: SEAWEEDFS INGRESS"
+    block: |
+        # SeaweedFS S3 API Gateway
+        - hostname: s3.{{ cloudflare_secrets.DOMAIN }}
+          service: http://localhost:8333
+
+        # SeaweedFS Filer GUI
+        - hostname: filer.{{ cloudflare_secrets.DOMAIN }}
+          service: http://localhost:8888
+
+        # SeaweedFS Master UI
+        - hostname: seaweed.{{ cloudflare_secrets.DOMAIN }}
+          service: http://localhost:9333
+  when: cloudflared_config_stat.stat.exists
+  notify: Restart Cloudflared service
+
+- name: Append SeaweedFS endpoints to Cloudflare Tunnel ingress configuration
+  ansible.builtin.blockinfile:
+    path: /etc/cloudflared/config.yml
+    insertbefore: '^\s*-\s*service:\s*http_status:404'
+    marker: "  # {mark} ANSIBLE MANAGED BLOCK: SEAWEEDFS INGRESS"
+    block: "  # SeaweedFS S3 API Gateway\n  - hostname: s3.{{ cloudflare_secrets.DOMAIN }}\n    service: http://localhost:8333\n\n  # SeaweedFS Filer GUI\n  - hostname: filer.{{ cloudflare_secrets.DOMAIN }}\n    service: http://localhost:8888\n\n  # SeaweedFS Master UI\n  - hostname: seaweed.{{ cloudflare_secrets.DOMAIN }}\n    service: http://localhost:9333"
+  when: cloudflared_config_stat.stat.exists
+  notify: Restart Cloudflared service

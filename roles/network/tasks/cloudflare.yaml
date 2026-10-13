@@ -31,11 +31,20 @@
     mode: '0644'
 
 - name: Add official Cloudflare APT repository
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main"
+  ansible.builtin.deb822_repository:
+    name: cloudflared
+    types: deb
+    uris: https://pkg.cloudflare.com/cloudflared
+    suites: any
+    components: main
+    signed_by: /etc/apt/keyrings/cloudflare-main.gpg
     state: present
-    filename: cloudflared
+  register: cloudflared_repo
+
+- name: Update APT cache if Cloudflare repository changed
+  ansible.builtin.apt:
     update_cache: yes
+  when: cloudflared_repo.changed
 
 - name: Install Cloudflared package
   ansible.builtin.apt:

@@ -5,16 +5,27 @@
     name: zfs_secrets
 
 - name: Enable Debian Backports repository for ZFS utilities
-  ansible.builtin.apt_repository:
-    repo: "deb http://deb.debian.org/debian {{ ansible_facts['distribution_release'] }}-backports main contrib non-free-firmware"
+  ansible.builtin.deb822_repository:
+    name: debian-backports
+    types: deb
+    uris: http://deb.debian.org/debian
+    suites: "{{ ansible_facts['distribution_release'] }}-backports"
+    components:
+      - main
+      - contrib
+      - non-free-firmware
     state: present
-    filename: debian-backports
+  register: backports_repo
+
+- name: Update APT cache if Backports repository changed
+  ansible.builtin.apt:
     update_cache: yes
+  when: backports_repo.changed
 
 - name: Install Kernel Headers, ZFS, and NFS Packages
   ansible.builtin.apt:
     name:
-      - "linux-headers-{{ ansible_kernel }}"
+      - "linux-headers-{{ ansible_facts['kernel'] }}"
       - zfsutils-linux
       - zfs-dkms
       - nfs-kernel-server
@@ -34,6 +45,9 @@
   failed_when: false
   changed_when: false
 
+# -------------------------------------------------------------
+# ZFS Pool Creation & Configuration
+# -------------------------------------------------------------
 - name: Create ZFS Mirrored Pool across target disks
   ansible.builtin.command:
     cmd: >-
@@ -61,7 +75,7 @@
 
 - name: Dynamically derive system subnet CIDR
   ansible.builtin.set_fact:
-    system_network_cidr: "{{ (ansible_default_ipv4.address ~ '/' ~ ansible_default_ipv4.netmask) | ansible.utils.ipaddr('network/prefix') }}"
+    system_network_cidr: "{{ (ansible_facts['default_ipv4']['address'] ~ '/' ~ ansible_facts['default_ipv4']['netmask']) | ansible.utils.ipaddr('network/prefix') }}"
 
 - name: Configure native ZFS NFS share export dynamically
   ansible.builtin.command:
