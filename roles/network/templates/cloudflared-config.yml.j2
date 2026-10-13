@@ -1,5 +1,6 @@
 tunnel: {{ cloudflare_creds_json.TunnelID }}
 credentials-file: /etc/cloudflared/{{ cloudflare_creds_json.TunnelID }}.json
+protocol: http2
 
 ingress:
   # Catch-all rule required by Cloudflare
