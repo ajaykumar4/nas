@@ -1,6 +1,6 @@
 ---
 # ==========================================
-# CLOUDFLARED
+# CLOUDFLARED CONFIGURATION & SERVICE SETUP
 # ==========================================
 - name: Load Cloudflare SOPS secrets
   community.sops.load_vars:
@@ -30,7 +30,7 @@
     group: root
     mode: '0644'
 
-- name: Add official Cloudflare APT repository
+- name: Add official Cloudflare APT repository (DEB822)
   ansible.builtin.deb822_repository:
     name: cloudflared
     types: deb
@@ -76,19 +76,18 @@
     mode: '0644'
   notify: Restart Cloudflared service
 
-- name: Check if Cloudflared systemd service exists
-  ansible.builtin.stat:
-    path: /etc/systemd/system/cloudflared.service
-  register: cloudflared_service_stat
-
-- name: Install Cloudflared connector service
-  ansible.builtin.command:
-    cmd: "cloudflared service install {{ cloudflare_secrets.TUNNEL_TOKEN }}"
-  when: not cloudflared_service_stat.stat.exists
-  no_log: true
+- name: Deploy systemd unit for local Cloudflared tunnel from template
+  ansible.builtin.template:
+    src: cloudflared.service.j2
+    dest: /etc/systemd/system/cloudflared.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Cloudflared service
 
 - name: Enable and start Cloudflared service
   ansible.builtin.systemd_service:
     name: cloudflared
     state: started
     enabled: true
+    daemon_reload: yes
