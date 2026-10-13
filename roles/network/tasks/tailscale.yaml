@@ -1,33 +1,29 @@
 ---
+# ==========================================
+# TAILSCALE
+# ==========================================
 - name: Load Tailscale SOPS secrets
   community.sops.load_vars:
     file: "{{ role_path }}/vars/tailscale.sops.yaml"
     name: tailscale_secrets
 
-- name: Assert SOPS secrets are decrypted
-  ansible.builtin.assert:
-    that:
-      - tailscale_secrets is defined
-      - tailscale_secrets.TS_AUTHKEY is defined
-      - "'ENC[AES256_GCM' not in tailscale_secrets.TS_AUTHKEY"
-    fail_msg: "FAILED: Tailscale SOPS secrets are unencrypted/raw ciphertext!"
-    success_msg: "SUCCESS: Tailscale SOPS secrets successfully decrypted."
-
-- name: Add Tailscale YUM repository
+- name: Download official Tailscale GPG key
   ansible.builtin.get_url:
-    url: "https://pkgs.tailscale.com/stable/rhel/{{ ansible_facts['distribution_major_version'] | default('10') }}/tailscale.repo"
-    dest: /etc/yum.repos.d/tailscale.repo
+    url: "https://pkgs.tailscale.com/stable/debian/{{ ansible_facts['distribution_release'] | default('bookworm') }}.noarmor.gpg"
+    dest: /etc/apt/keyrings/tailscale-archive-keyring.gpg
     owner: root
     group: root
     mode: '0644'
 
-- name: Purge DNF cache entirely
-  ansible.builtin.command:
-    cmd: dnf clean all
-  changed_when: false
+- name: Add official Tailscale APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/debian {{ ansible_facts['distribution_release'] | default('bookworm') }} main"
+    state: present
+    filename: tailscale
+    update_cache: yes
 
 - name: Install Tailscale
-  ansible.builtin.dnf:
+  ansible.builtin.apt:
     name: tailscale
     state: present
 
@@ -78,4 +74,3 @@
     ts_backend_state: "{{ (tailscale_status_json.stdout | default('{}') | from_json).BackendState | default('') }}"
   when: ts_backend_state != "Running"
   no_log: true
-  changed_when: true

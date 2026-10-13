@@ -1,0 +1,28 @@
+---
+# -------------------------------------------------------------
+# System Package Updates & Maintenance
+# -------------------------------------------------------------
+- name: Update APT package cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Upgrade all system packages
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: yes
+    purge: yes
+
+- name: Clean APT package cache
+  ansible.builtin.apt:
+    clean: yes
+
+- name: Check if a reboot is required by apt/kernel updates
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required_file
+
+- name: Notify reboot handler if system requires restart
+  ansible.builtin.command: /bin/true
+  when: reboot_required_file.stat.exists
+  notify: Reboot ZimaBlade system

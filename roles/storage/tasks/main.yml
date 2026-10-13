@@ -1,6 +1,6 @@
 ---
-- name: Configure Storage
-  ansible.builtin.import_tasks: storage.yaml
+- name: Configure ZFS Storage
+  ansible.builtin.import_tasks: zfs.yaml
 
-- name: Configure NFS Storage
-  ansible.builtin.import_tasks: nfs.yaml
+- name: Configure SeaweedFS Server
+  ansible.builtin.import_tasks: seaweedfs.yaml

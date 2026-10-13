@@ -1,5 +1,11 @@
 ---
-- name: Reload NFS exports
+- name: Reload ZFS NFS exports
   ansible.builtin.command:
-    cmd: exportfs -ra
+    cmd: "zfs share {{ zfs_secrets.zfs_pool_name }}"
   changed_when: true
+
+- name: Restart SeaweedFS service
+  ansible.builtin.systemd_service:
+    name: seaweedfs
+    state: restarted
+    daemon_reload: yes

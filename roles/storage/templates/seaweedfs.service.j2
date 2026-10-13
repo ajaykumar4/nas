@@ -1,0 +1,21 @@
+[Unit]
+Description=SeaweedFS Server (Master, Volume, Filer, S3)
+After=network.target zfs-mount.service
+Wants=zfs-mount.service
+
+[Service]
+Type=simple
+User=seaweedfs
+Group=seaweedfs
+ExecStart=/usr/local/bin/weed server \
+  -dir={{ zfs_secrets.zfs_mount_point | default('/mnt/' ~ zfs_secrets.zfs_pool_name) }}/seaweedfs/data \
+  -filer.path={{ zfs_secrets.zfs_mount_point | default('/mnt/' ~ zfs_secrets.zfs_pool_name) }}/seaweedfs/filerldb \
+  -s3 \
+  -s3.port=8333 \
+  -volume.max=0
+Restart=always
+RestartSec=10
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

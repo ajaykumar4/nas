@@ -1,0 +1,64 @@
+---
+# -------------------------------------------------------------
+# SeaweedFS Installation & Configuration
+# -------------------------------------------------------------
+- name: Download latest SeaweedFS release binary for Linux AMD64
+  ansible.builtin.get_url:
+    url: "https://github.com/seaweedfs/seaweedfs/releases/latest/download/linux_amd64.tar.gz"
+    dest: /tmp/seaweedfs.tar.gz
+    mode: '0644'
+
+- name: Extract SeaweedFS executable to /usr/local/bin
+  ansible.builtin.unarchive:
+    src: /tmp/seaweedfs.tar.gz
+    dest: /usr/local/bin/
+    remote_src: yes
+    mode: '0755'
+
+- name: Create SeaweedFS system group
+  ansible.builtin.group:
+    name: seaweedfs
+    state: present
+    system: yes
+
+- name: Create SeaweedFS system user
+  ansible.builtin.user:
+    name: seaweedfs
+    group: seaweedfs
+    system: yes
+    shell: /usr/sbin/nologin
+    create_home: no
+
+- name: Ensure SeaweedFS storage and metadata directories exist on ZFS
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: seaweedfs
+    group: seaweedfs
+    mode: '0755'
+  loop:
+    - "{{ zfs_secrets.zfs_mount_point | default('/mnt/' ~ zfs_secrets.zfs_pool_name) }}/seaweedfs/data"
+    - "{{ zfs_secrets.zfs_mount_point | default('/mnt/' ~ zfs_secrets.zfs_pool_name) }}/seaweedfs/filerldb"
+    - /etc/seaweedfs
+
+- name: Check if SeaweedFS systemd service file exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/seaweedfs.service
+  register: seaweedfs_service_stat
+
+- name: Create SeaweedFS systemd service from template
+  ansible.builtin.template:
+    src: seaweedfs.service.j2
+    dest: /etc/systemd/system/seaweedfs.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart SeaweedFS service
+
+- name: Enable and start SeaweedFS service
+  ansible.builtin.systemd_service:
+    name: seaweedfs
+    state: started
+    enabled: true
+    daemon_reload: yes
+

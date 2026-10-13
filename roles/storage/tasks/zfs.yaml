@@ -1,0 +1,82 @@
+---
+- name: Load ZFS SOPS secrets
+  community.sops.load_vars:
+    file: "{{ role_path }}/vars/zfs.sops.yaml"
+    name: zfs_secrets
+
+- name: Enable Debian Backports repository for ZFS utilities
+  ansible.builtin.apt_repository:
+    repo: "deb http://deb.debian.org/debian {{ ansible_facts['distribution_release'] }}-backports main contrib non-free-firmware"
+    state: present
+    filename: debian-backports
+    update_cache: yes
+
+- name: Install Kernel Headers, ZFS, and NFS Packages
+  ansible.builtin.apt:
+    name:
+      - "linux-headers-{{ ansible_kernel }}"
+      - zfsutils-linux
+      - zfs-dkms
+      - nfs-kernel-server
+      - rpcbind
+    state: present
+    default_release: "{{ ansible_facts['distribution_release'] }}-backports"
+
+- name: Ensure ZFS kernel module is loaded
+  community.general.modprobe:
+    name: zfs
+    state: present
+
+- name: Check if ZFS pool already exists
+  ansible.builtin.command:
+    cmd: "zpool list -H -o name {{ zfs_secrets.zfs_pool_name }}"
+  register: zpool_check
+  failed_when: false
+  changed_when: false
+
+- name: Create ZFS Mirrored Pool across target disks
+  ansible.builtin.command:
+    cmd: >-
+      zpool create -f
+      -o ashift={{ zfs_secrets.zfs_ashift | default(12) }}
+      -m {{ zfs_secrets.zfs_mount_point | default('/mnt/' ~ zfs_secrets.zfs_pool_name) }}
+      {{ zfs_secrets.zfs_pool_name }} mirror
+      {{ zfs_secrets.zfs_disks | join(' ') }}
+  when: zpool_check.rc != 0
+
+- name: Get current ZFS pool properties
+  ansible.builtin.command:
+    cmd: "zfs get -H -o property,value all {{ zfs_secrets.zfs_pool_name }}"
+  register: zfs_props
+  changed_when: false
+
+- name: Set ZFS performance optimizations if not set
+  ansible.builtin.command:
+    cmd: "zfs set {{ item.key }}={{ item.value }} {{ zfs_secrets.zfs_pool_name }}"
+  when: "item.key ~ '\t' ~ item.value not in zfs_props.stdout"
+  loop:
+    - { key: 'compression', value: 'lz4' }
+    - { key: 'atime', value: 'off' }
+    - { key: 'xattr', value: 'sa' }
+
+- name: Dynamically derive system subnet CIDR
+  ansible.builtin.set_fact:
+    system_network_cidr: "{{ (ansible_default_ipv4.address ~ '/' ~ ansible_default_ipv4.netmask) | ansible.utils.ipaddr('network/prefix') }}"
+
+- name: Configure native ZFS NFS share export dynamically
+  ansible.builtin.command:
+    cmd: "zfs set sharenfs='rw=@{{ system_network_cidr }},no_root_squash,no_subtree_check' {{ zfs_secrets.zfs_pool_name }}"
+  when: "'sharenfs\trw=@' ~ system_network_cidr not in zfs_props.stdout"
+  notify: Reload ZFS NFS exports
+
+- name: Ensure ZFS, rpcbind, and NFS systemd services are enabled and active
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - zfs-import-cache.service
+    - zfs-mount.service
+    - zfs.target
+    - rpcbind
+    - nfs-server

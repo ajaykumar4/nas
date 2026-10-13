@@ -1,51 +1,81 @@
 ---
+# ==========================================
+# CLOUDFLARED
+# ==========================================
 - name: Load Cloudflare SOPS secrets
   community.sops.load_vars:
     file: "{{ role_path }}/vars/cloudflare.sops.yaml"
     name: cloudflare_secrets
 
-- name: Assert SOPS secrets are decrypted
-  ansible.builtin.assert:
-    that:
-      - cloudflare_secrets is defined
-      - cloudflare_secrets.TUNNEL_TOKEN is defined
-      - "'ENC[AES256_GCM' not in cloudflare_secrets.TUNNEL_TOKEN"
-    fail_msg: "FAILED: Cloudflare SOPS secrets are unencrypted/raw ciphertext!"
-    success_msg: "SUCCESS: Cloudflare SOPS secrets successfully decrypted."
+- name: Decode Tunnel Token into local credentials structure
+  ansible.builtin.set_fact:
+    cloudflare_creds_json:
+      AccountTag: "{{ (cloudflare_secrets.TUNNEL_TOKEN | b64decode | from_json).a }}"
+      TunnelID: "{{ (cloudflare_secrets.TUNNEL_TOKEN | b64decode | from_json).t }}"
+      TunnelSecret: "{{ (cloudflare_secrets.TUNNEL_TOKEN | b64decode | from_json).s }}"
 
-- name: Remove broken legacy Cloudflare repo file
+- name: Ensure APT keyrings directory exists
   ansible.builtin.file:
-    path: /etc/yum.repos.d/cloudflare.repo
-    state: absent
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
 
-- name: Ensure broken repo definition is removed via yum_repository
-  ansible.builtin.yum_repository:
-    name: cloudflare
-    state: absent
-
-- name: Add official Cloudflare YUM repository
+- name: Download official Cloudflare GPG key
   ansible.builtin.get_url:
-    url: https://pkg.cloudflare.com/cloudflared-ascii.repo
-    dest: /etc/yum.repos.d/cloudflared.repo
+    url: https://pkg.cloudflare.com/cloudflare-main.gpg
+    dest: /etc/apt/keyrings/cloudflare-main.gpg
     owner: root
     group: root
     mode: '0644'
 
-- name: Purge DNF cache entirely
-  ansible.builtin.command:
-    cmd: dnf clean all
-  changed_when: false
+- name: Add official Cloudflare APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main"
+    state: present
+    filename: cloudflared
+    update_cache: yes
 
-- name: Install Cloudflared
-  ansible.builtin.dnf:
+- name: Install Cloudflared package
+  ansible.builtin.apt:
     name: cloudflared
     state: present
+
+- name: Ensure Cloudflared runtime configuration directory exists
+  ansible.builtin.file:
+    path: /etc/cloudflared
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Write local credentials file on host
+  ansible.builtin.copy:
+    content: "{{ cloudflare_creds_json | to_nice_json }}"
+    dest: "/etc/cloudflared/{{ cloudflare_creds_json.TunnelID }}.json"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Deploy Cloudflared ingress configuration from template
+  ansible.builtin.template:
+    src: cloudflared-config.yml.j2
+    dest: /etc/cloudflared/config.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Cloudflared service
+
+- name: Check if Cloudflared systemd service exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/cloudflared.service
+  register: cloudflared_service_stat
 
 - name: Install Cloudflared connector service
   ansible.builtin.command:
     cmd: "cloudflared service install {{ cloudflare_secrets.TUNNEL_TOKEN }}"
-  args:
-    creates: /etc/systemd/system/cloudflared.service
+  when: not cloudflared_service_stat.stat.exists
   no_log: true
 
 - name: Enable and start Cloudflared service

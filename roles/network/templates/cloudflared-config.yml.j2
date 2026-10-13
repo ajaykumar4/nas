@@ -1,0 +1,6 @@
+tunnel: {{ cloudflare_creds_json.TunnelID }}
+credentials-file: /etc/cloudflared/{{ cloudflare_creds_json.TunnelID }}.json
+
+ingress:
+  # Catch-all rule required by Cloudflare
+  - service: http_status:404

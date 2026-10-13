@@ -1,0 +1,31 @@
+---
+# -------------------------------------------------------------
+# OpenMediaVault (OMV) & OMV-Extras Installation
+# -------------------------------------------------------------
+- name: Check if OpenMediaVault is installed
+  ansible.builtin.stat:
+    path: /usr/sbin/omv-engined
+  register: omv_installed
+
+- name: Download official OpenMediaVault installer
+  ansible.builtin.get_url:
+    url: https://github.com/OpenMediaVault-Plugin-Developers/installScript/raw/master/install
+    dest: /tmp/omv-install.sh
+    mode: '0755'
+  when: not omv_installed.stat.exists
+
+- name: Execute OpenMediaVault installation script (Non-interactive)
+  ansible.builtin.command:
+    cmd: /tmp/omv-install.sh -n
+  when: not omv_installed.stat.exists
+  notify: Reboot ZimaBlade system
+
+- name: Check if OMV-Extras is installed
+  ansible.builtin.stat:
+    path: /usr/bin/omv-extras
+  register: omvextras_installed
+
+- name: Download and install OMV-Extras plugin repository
+  ansible.builtin.shell:
+    cmd: wget -O - https://github.com/OpenMediaVault-Plugin-Developers/packages/raw/master/install | bash
+  when: not omvextras_installed.stat.exists
